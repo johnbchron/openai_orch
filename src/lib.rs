@@ -40,7 +40,9 @@ impl Orchestrator {
   pub fn new(policies: Policies, keys: Keys) -> Self {
     Self {
       requests: Arc::new(Mutex::new(HashMap::new())),
-      semaphore: Arc::new(Semaphore::new(10)),
+      semaphore: Arc::new(Semaphore::new(
+        policies.concurrency_policy.max_concurrent_requests,
+      )),
       policies,
       keys,
     }
@@ -63,7 +65,7 @@ impl Orchestrator {
       let _permit = semaphore
         .acquire()
         .await
-        .expect("Failed to acquire semaphore");
+        .expect("failed to acquire semaphore; this is UB");
 
       let res = request
         .send(policies, keys)

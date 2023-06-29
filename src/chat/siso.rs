@@ -5,6 +5,7 @@ use async_openai::types::{
   ChatCompletionRequestMessage, CreateChatCompletionRequest, Role, Stop,
 };
 use async_trait::async_trait;
+use log::{error, debug};
 use tokio::time::timeout;
 
 use crate::{
@@ -14,10 +15,25 @@ use crate::{
 
 #[derive(Clone)]
 pub struct ChatSisoRequest {
-  pub id:            u32,
+  id:            u32,
   pub system_prompt: String,
   pub user_prompt:   String,
   pub model_params:  ChatModelParams,
+}
+
+impl ChatSisoRequest {
+  pub fn new(
+    system_prompt: String,
+    user_prompt: String,
+    model_params: ChatModelParams,
+  ) -> Self {
+    Self {
+      id: rand::random::<u32>(),
+      system_prompt,
+      user_prompt,
+      model_params,
+    }
+  }
 }
 
 pub struct ChatSisoResponse(String);
@@ -34,57 +50,64 @@ impl ResponseType for ChatSisoResponse {}
 impl RequestHandler for ChatSisoRequest {
   type Res = ChatSisoResponse;
   async fn send(&self, policies: Policies, keys: Keys) -> Result<Self::Res> {
-    println!("starting request {}", self.id);
+    debug!("starting request {}", self.id);
     let client = get_openai_client(&keys);
     let mut retry_policy = policies.retry_policy;
 
+    // continue trying until we get a response or we reach max retry
     loop {
       let request = build_inner_request(self.clone());
-      // start a timer for debugging
       let timer = timing::start();
-      let response = timeout(
+      let timeout_duration = std::cmp::min(
+        std::time::Duration::from_secs_f32(
+          10.0 * ((self.model_params.max_tokens as f32 + (self.system_prompt.len() + self.user_prompt.len()) as f32 / 4.0 ) as f32 / 512.0),
+        ),
         policies.timeout_policy.timeout,
-        client.chat().create(request),
-      )
-      .await;
+      );
+      let response =
+        timeout(timeout_duration.clone(), client.chat().create(request)).await;
 
-      match response {
-        Ok(response) => {
-          println!(
-            "got response for {} in {}",
-            self.id,
-            timer.elapsed().as_secs_f32()
-          );
-          match response {
-            Ok(response) => {
-              let completion =
-                response.choices[0].message.clone().content.ok_or_else(
-                  || Error::msg("response.choices[0].message.content is None"),
-                )?;
-              return Ok(ChatSisoResponse(completion));
-            }
-            Err(err) => {
-              if retry_policy.failed_request().await {
-                continue;
-              } else {
-                return Err(Error::new(err).context("reached max retry"));
-              }
-            }
-          }
-        }
+      // if we timed out, we need to check if we should retry
+      let response = match response {
+        Ok(response) => response,
         Err(err) => {
-          println!(
+          debug!(
             "request {} timed out after {}s",
             self.id,
-            policies.timeout_policy.timeout.as_secs_f32()
+            timeout_duration.as_secs_f32()
           );
+          if retry_policy.failed_request().await {
+            continue;
+          } else {
+            error!("request {} reached max retry", self.id);
+            return Err(Error::new(err).context("reached max retry"));
+          }
+        }
+      };
+
+      // if we got a response, we need to check if it's an error
+      let response = match response {
+        Ok(response) => response,
+        Err(err) => {
           if retry_policy.failed_request().await {
             continue;
           } else {
             return Err(Error::new(err).context("reached max retry"));
           }
         }
-      }
+      };
+
+      debug!(
+        "got response for {} in {}",
+        self.id,
+        timer.elapsed().as_secs_f32()
+      );
+      let completion =
+        response.choices[0].message.clone().content.ok_or_else(|| {
+          Error::msg("response.choices[0].message.content is None")
+        })?;
+
+      return Ok(ChatSisoResponse(completion));
     }
   }
 }
