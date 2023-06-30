@@ -44,6 +44,12 @@ impl Display for ChatSisoResponse {
   }
 }
 
+impl From<ChatSisoResponse> for String {
+  fn from(response: ChatSisoResponse) -> Self {
+    response.0
+  }
+}
+
 impl ResponseType for ChatSisoResponse {}
 
 #[async_trait]
