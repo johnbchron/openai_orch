@@ -1,12 +1,12 @@
 use std::time::Duration;
 
+use log::info;
 use openai_orch::{
   chat::{siso::ChatSisoRequest, ChatModelParams},
   keys::Keys,
   policies::{ConcurrencyPolicy, Policies, TimeoutPolicy},
   Orchestrator,
 };
-use log::info;
 
 #[tokio::main]
 async fn main() {
@@ -21,13 +21,12 @@ async fn main() {
     Keys::from_env().unwrap(),
   );
 
-
   let mut request_handles = vec![];
   for _ in 0..100 {
     let request = ChatSisoRequest::new(
       "You are a helpful assistant.".to_string(),
       "Hi".to_string(),
-      ChatModelParams::default()
+      ChatModelParams::default(),
     );
     request_handles.push(orch.add_request(request.clone()).await);
   }

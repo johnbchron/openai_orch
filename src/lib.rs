@@ -16,7 +16,12 @@ pub trait ResponseType: 'static + Send {}
 #[async_trait]
 pub trait RequestHandler {
   type Res: ResponseType;
-  async fn send(&self, policies: Policies, keys: Keys) -> Result<Self::Res>;
+  async fn send(
+    &self,
+    policies: Policies,
+    keys: Keys,
+    id: u64,
+  ) -> Result<Self::Res>;
 }
 
 #[derive(Clone)]
@@ -68,7 +73,7 @@ impl Orchestrator {
         .expect("failed to acquire semaphore; this is UB");
 
       let res = request
-        .send(policies, keys)
+        .send(policies, keys, id)
         .await
         .map(|res| Box::new(res) as Box<dyn Any + Send>);
       let _ = tx.send(res).await;

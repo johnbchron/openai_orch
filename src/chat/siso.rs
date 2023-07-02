@@ -5,7 +5,7 @@ use async_openai::types::{
   ChatCompletionRequestMessage, CreateChatCompletionRequest, Role, Stop,
 };
 use async_trait::async_trait;
-use log::{error, debug};
+use log::{debug, error};
 use tokio::time::timeout;
 
 use crate::{
@@ -15,7 +15,6 @@ use crate::{
 
 #[derive(Clone)]
 pub struct ChatSisoRequest {
-  id:            u32,
   pub system_prompt: String,
   pub user_prompt:   String,
   pub model_params:  ChatModelParams,
@@ -28,7 +27,6 @@ impl ChatSisoRequest {
     model_params: ChatModelParams,
   ) -> Self {
     Self {
-      id: rand::random::<u32>(),
       system_prompt,
       user_prompt,
       model_params,
@@ -55,8 +53,13 @@ impl ResponseType for ChatSisoResponse {}
 #[async_trait]
 impl RequestHandler for ChatSisoRequest {
   type Res = ChatSisoResponse;
-  async fn send(&self, policies: Policies, keys: Keys) -> Result<Self::Res> {
-    debug!("starting request {}", self.id);
+  async fn send(
+    &self,
+    policies: Policies,
+    keys: Keys,
+    id: u64,
+  ) -> Result<Self::Res> {
+    debug!("starting request {}", id);
     let client = get_openai_client(&keys);
     let mut retry_policy = policies.retry_policy;
 
@@ -66,7 +69,11 @@ impl RequestHandler for ChatSisoRequest {
       let timer = timing::start();
       let timeout_duration = std::cmp::min(
         std::time::Duration::from_secs_f32(
-          10.0 * ((self.model_params.max_tokens as f32 + (self.system_prompt.len() + self.user_prompt.len()) as f32 / 4.0 ) as f32 / 512.0),
+          10.0
+            * ((self.model_params.max_tokens as f32
+              + (self.system_prompt.len() + self.user_prompt.len()) as f32
+                / 4.0) as f32
+              / 512.0),
         ),
         policies.timeout_policy.timeout,
       );
@@ -79,13 +86,13 @@ impl RequestHandler for ChatSisoRequest {
         Err(err) => {
           debug!(
             "request {} timed out after {}s",
-            self.id,
+            id,
             timeout_duration.as_secs_f32()
           );
           if retry_policy.failed_request().await {
             continue;
           } else {
-            error!("request {} reached max retry", self.id);
+            error!("request {} reached max retry", id);
             return Err(Error::new(err).context("reached max retry"));
           }
         }
@@ -105,7 +112,7 @@ impl RequestHandler for ChatSisoRequest {
 
       debug!(
         "got response for {} in {}",
-        self.id,
+        id,
         timer.elapsed().as_secs_f32()
       );
       let completion =
