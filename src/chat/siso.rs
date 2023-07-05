@@ -34,7 +34,7 @@ impl ChatSisoRequest {
   }
 }
 
-pub struct ChatSisoResponse(String);
+pub struct ChatSisoResponse(pub String);
 
 impl Display for ChatSisoResponse {
   fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {

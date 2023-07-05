@@ -1,4 +1,5 @@
 pub mod chat;
+pub mod embed;
 pub mod keys;
 pub mod policies;
 pub mod utils;
