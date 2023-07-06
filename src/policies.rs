@@ -126,9 +126,9 @@ impl RetryPolicy {
 impl Default for RetryPolicy {
   fn default() -> Self {
     Self::exponential_backoff(
-      3,
+      5,
       Duration::from_secs(1),
-      Duration::from_secs(60),
+      Duration::from_secs(10),
     )
   }
 }
