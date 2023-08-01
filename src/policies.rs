@@ -1,3 +1,5 @@
+//! Policies for controlling retry, concurrency, and timeout behavior.
+
 use tokio::time::Duration;
 
 #[derive(Clone, Default)]
@@ -7,6 +9,7 @@ pub struct Policies {
   pub timeout_policy:     TimeoutPolicy,
 }
 
+/// A policy for configuring how requests should retry when they fail.
 #[derive(Clone)]
 pub enum RetryPolicy {
   /// Retry the request immediately.
@@ -94,6 +97,8 @@ impl RetryPolicy {
     }
   }
 
+  /// Returns a new retry policy that will retry immediately, with a maximum
+  /// number of retries.
   pub fn immediate(max_retries: u32) -> Self {
     Self::Immediate {
       current_retries: 0,
@@ -101,6 +106,8 @@ impl RetryPolicy {
     }
   }
 
+  /// Returns a new retry policy that will retry after a constant delay, with a
+  /// maximum number of retries.
   pub fn constant_delay(max_retries: u32, delay: Duration) -> Self {
     Self::ConstantDelay {
       current_retries: 0,
@@ -109,6 +116,8 @@ impl RetryPolicy {
     }
   }
 
+  /// Returns a new retry policy that will retry after an exponentially
+  /// increasing delay, with a maximum number of retries, and a maximum delay.
   pub fn exponential_backoff(
     max_retries: u32,
     initial_delay: Duration,
@@ -146,6 +155,7 @@ fn exponential_backoff(
   }
 }
 
+/// A policy for configuring how many requests can be executed concurrently.
 #[derive(Clone)]
 pub struct ConcurrencyPolicy {
   pub max_concurrent_requests: usize,
@@ -173,6 +183,7 @@ pub struct TimeoutPolicy {
 }
 
 impl TimeoutPolicy {
+  /// Returns a new timeout policy with the given timeout.
   pub fn new(timeout: Duration) -> Self {
     Self { timeout }
   }

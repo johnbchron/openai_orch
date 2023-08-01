@@ -1,45 +1,25 @@
-use std::time::Duration;
-
-use log::info;
 use openai_orch::{
-  chat::{siso::ChatSisoRequest, ChatModelParams},
+  chat::siso::{ChatSisoRequest, ChatSisoResponse},
   keys::Keys,
-  policies::{ConcurrencyPolicy, Policies, TimeoutPolicy},
+  policies::Policies,
   Orchestrator,
 };
 
 #[tokio::main]
 async fn main() {
-  env_logger::init();
+  let policies = Policies::default();
+  let keys = Keys::from_env().unwrap();
+  let orchestrator = Orchestrator::new(policies, keys);
 
-  let orch = Orchestrator::new(
-    Policies {
-      concurrency_policy: ConcurrencyPolicy::new(25),
-      timeout_policy: TimeoutPolicy::new(Duration::from_secs(15)),
-      ..Default::default()
-    },
-    Keys::from_env().unwrap(),
+  let request = ChatSisoRequest::new(
+    "You are a helpful assistant.".to_string(),
+    "What are you?".to_string(),
+    Default::default(),
   );
+  let request_id = orchestrator.add_request(request).await;
 
-  let mut request_handles = vec![];
-  for _ in 0..100 {
-    let request = ChatSisoRequest::new(
-      "You are a helpful assistant.".to_string(),
-      "Hi".to_string(),
-      ChatModelParams::default(),
-    );
-    request_handles.push(orch.add_request(request.clone()).await);
-  }
-
-  let mut response_handles = vec![];
-  for handle in request_handles {
-    response_handles.push(tokio::spawn({
-      let orch = orch.clone();
-      async move {
-        let response = orch.get_response(handle).await.unwrap();
-        info!("{}", response);
-      }
-    }));
-  }
-  futures::future::join_all(response_handles).await;
+  let response = orchestrator
+    .get_response::<ChatSisoResponse>(request_id)
+    .await;
+  println!("{}", response.unwrap());
 }

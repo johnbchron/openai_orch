@@ -1,3 +1,5 @@
+//! A `Keys` struct for managing OpenAI keys.
+
 #[derive(Clone)]
 pub struct Keys {
   pub openai_api_key: String,

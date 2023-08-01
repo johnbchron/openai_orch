@@ -1,5 +1,10 @@
+//! Requests and responses using Chat models.
+
 pub mod siso;
 
+/// Parameters common to all OpenAI Chat models.
+///
+/// Refer to `async-openai`'s `CreateChatCompletionRequest` for exact details.
 #[derive(Clone)]
 pub struct ChatModelParams {
   pub model:             String,

@@ -1,3 +1,5 @@
+//! A "single input, single output" request for the OpenAI Chat API.
+
 use core::fmt::{Display, Formatter};
 
 use anyhow::{Error, Result};
@@ -10,9 +12,12 @@ use tokio::time::timeout;
 
 use crate::{
   chat::ChatModelParams, keys::Keys, policies::Policies,
-  utils::get_openai_client, RequestHandler, ResponseType,
+  utils::get_openai_client, OrchRequest, ResponseType,
 };
 
+/// A SISO (single input, single output) request for the OpenAI Chat API.
+///
+/// Refer to the `Orchestrator` for usage.
 #[derive(Clone)]
 pub struct ChatSisoRequest {
   pub system_prompt: String,
@@ -34,6 +39,7 @@ impl ChatSisoRequest {
   }
 }
 
+/// The response given by a `ChatSisoRequest`.
 pub struct ChatSisoResponse(pub String);
 
 impl Display for ChatSisoResponse {
@@ -51,7 +57,7 @@ impl From<ChatSisoResponse> for String {
 impl ResponseType for ChatSisoResponse {}
 
 #[async_trait]
-impl RequestHandler for ChatSisoRequest {
+impl OrchRequest for ChatSisoRequest {
   type Res = ChatSisoResponse;
   async fn send(
     &self,
@@ -72,13 +78,13 @@ impl RequestHandler for ChatSisoRequest {
           10.0
             * ((self.model_params.max_tokens as f32
               + (self.system_prompt.len() + self.user_prompt.len()) as f32
-                / 4.0) as f32
+                / 4.0)
               / 512.0),
         ),
         policies.timeout_policy.timeout,
       );
       let response =
-        timeout(timeout_duration.clone(), client.chat().create(request)).await;
+        timeout(timeout_duration, client.chat().create(request)).await;
 
       // if we timed out, we need to check if we should retry
       let response = match response {

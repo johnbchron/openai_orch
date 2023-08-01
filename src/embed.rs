@@ -1,3 +1,5 @@
+//! Requests and responses using Embeddings models.
+
 use anyhow::{Error, Result};
 use async_openai::types::CreateEmbeddingRequest;
 use async_trait::async_trait;
@@ -5,7 +7,7 @@ use log::{debug, error};
 use tokio::time::timeout;
 
 use crate::{
-  keys::Keys, policies::Policies, utils::get_openai_client, RequestHandler,
+  keys::Keys, policies::Policies, utils::get_openai_client, OrchRequest,
   ResponseType,
 };
 
@@ -17,7 +19,7 @@ pub struct EmbeddingResponse(pub [f32; EMBEDDING_SIZE]);
 impl ResponseType for EmbeddingResponse {}
 
 #[async_trait]
-impl RequestHandler for EmbeddingRequest {
+impl OrchRequest for EmbeddingRequest {
   type Res = EmbeddingResponse;
   async fn send(
     &self,
