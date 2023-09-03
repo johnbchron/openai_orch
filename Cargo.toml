@@ -3,6 +3,10 @@ name = "openai_orch"
 version = "0.1.0"
 edition = "2021"
 license = "MIT OR Apache-2.0"
+description = "A concurrency-included Rust client for the OpenAI API."
+homepage = "https://github.com/johnbchron/openai_orch"
+repository = "https://github.com/johnbchron/openai_orch"
+readme = "README.md"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
